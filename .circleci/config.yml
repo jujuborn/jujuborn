@@ -1,42 +1,57 @@
-# Scala CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/sample-config/ for more details
-#
-version: 2
-jobs:
-  build:
-    docker:
-      # specify the version you desire here
-      - image: circleci/openjdk:8-jdk
+#This code is licensed from CircleCI to the user under the MIT license.
+# See here for details: https://circleci.com/developer/orbs/licensing
+version: 2.1
+description: "A set of tools convenient for running Windows jobs on CircleCI."
 
-      # Specify service dependencies here if necessary
-      # CircleCI maintains a library of pre-built images
-      # documented at https://circleci.com/docs/2.0/circleci-images/
-      # - image: circleci/postgres:9.4
+## Anchors (used to DRY the executors in this orb)
+base-shell: &base-shell
+  type: string
+  description: >
+    The shell to use.
+    Defaults to `powershell.exe -ExecutionPolicy Bypass`
+  default: powershell.exe -ExecutionPolicy Bypass
 
-    working_directory: ~/repo
+base-version: &base-version
+  type: string
+  description: The image version to use when executing. Defaults to "stable".
+  default: "stable"
 
-    environment:
-      # Customize the JVM maximum heap limit
-      JVM_OPTS: -Xmx3200m
-      TERM: dumb
+## Executors (for use in config)
+executors:
+  default:
+    description: >
+      An executor preloaded with Visual Studio 2019 plus a number of other
+      development tools.
+    parameters:
+      version: *base-version
+      shell: *base-shell
+      size:
+        type: enum
+        description: >
+          The size of Windows resource to use.
+          Defaults to medium.
+        default: "medium"
+        enum: ["medium", "large", "xlarge", "2xlarge"]
+    machine:
+      image: "windows-server-2019-vs2019:<< parameters.version >>"
+      resource_class: "windows.<< parameters.size >>"
+      shell: << parameters.shell >>
 
-    steps:
-      - checkout
-
-      # Download and cache dependencies
-      - restore_cache:
-          keys:
-            - v1-dependencies-{{ checksum "build.sbt" }}
-            # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
-
-      - run: cat /dev/null | sbt test:compile
-
-      - save_cache:
-          paths:
-            - ~/.m2
-          key: v1-dependencies--{{ checksum "build.sbt" }}
-
-      # run tests!
-      - run: cat /dev/null | sbt test:test
+  gpu-nvidia:
+    description: >
+      An executor with an Nvidia GPU which includes a pre-installed CUDA
+      runtime and the cuDNN library.
+    parameters:
+      version: *base-version
+      shell: *base-shell
+      size:
+        type: enum
+        description: >
+          The size of Windows GPU resource to use.
+          Defaults to medium.
+        default: "medium"
+        enum: ["small", "medium", "large"]
+    machine:
+      image: "windows-server-2019-nvidia:<< parameters.version >>"
+      resource_class: "windows.gpu.nvidia.<< parameters.size >>"
+      shell: << parameters.shell >>
